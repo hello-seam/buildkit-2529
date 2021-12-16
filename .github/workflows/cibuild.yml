@@ -1,0 +1,56 @@
+on:
+  workflow_dispatch:
+    inputs:
+      container_tag:
+        description: Tag for container
+        default: "latest"
+        required: true
+
+  pull_request:
+
+  push:
+    branches:
+      - main
+
+name: Build container
+
+env:
+  CONTAINER_NAME: helloseam/buildkit-2529
+  RAW_CONTAINER_TAG: ${{ github.event.inputs.container_tag || github.event.pull_request.head.ref || 'latest' }}
+
+jobs:
+  cibuild:
+    name: Build and publish image
+    runs-on: ubuntu-20.04
+
+    strategy:
+      fail-fast: false
+      matrix:
+        target:
+          - jdk
+          - jre
+
+    steps:
+      - name: Set up Docker Buildx
+        id: buildx
+        uses: docker/setup-buildx-action@v1.3.0
+
+      - uses: actions/checkout@v2
+
+      # Needed for buildx gha cache to work
+      - name: Expose GitHub Runtime
+        uses: crazy-max/ghaction-github-runtime@v1
+
+      - name: Build and push container
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TARGET: ${{ matrix.target }}
+        run: |
+          CONTAINER_TAG=$(echo "$RAW_CONTAINER_TAG" | sed 's/[^a-zA-Z0-9]\+/-/')
+
+          docker buildx build \
+            --tag "$CONTAINER_NAME:$CONTAINER_TAG" \
+            --cache-from type=gha \
+            --cache-to type=gha,mode=max \
+            --target "$TARGET" \
+            --load .
