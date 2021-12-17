@@ -50,7 +50,8 @@ jobs:
 
           docker buildx build \
             --tag "$CONTAINER_NAME:$CONTAINER_TAG" \
-            --cache-from type=gha \
-            --cache-to type=gha,mode=max \
+            --cache-from type=gha,scope=jdk \
+            --cache-from type=gha,scope=jre \
+            --cache-to type=gha,mode=max,scope="$TARGET" \
             --target "$TARGET" \
             --load .
